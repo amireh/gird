@@ -138,7 +138,7 @@ class Gird::Parser
     style = determine_style(stream)
 
     normalize_scope = ->(scope) {
-      SCOPE_PREFIX + scope.to_s.sub(/^i18n!/, '').gsub('/', '.')
+      SCOPE_PREFIX + scope.to_s.sub(/^i18n!/, '').gsub('/', Gird::Constants::SCOPE_DELIMITER)
     }
 
     case style
@@ -217,7 +217,7 @@ class Gird::Parser
         # puts "Phrase: [#{key}] -> [#{value}] (Token: [#{phrase[1]}])"
 
         phrases << {
-          path: [ scope, key ].join('.'),
+          path: [ scope, key ].join(Gird::Constants::SCOPE_DELIMITER),
           value: value,
           source: capture
         }

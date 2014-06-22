@@ -1,5 +1,11 @@
 class Gird::PhraseBank
-  attr_accessor :tree, :nr_phrases
+  attr_accessor :tree
+
+  RE_ENDS_WITH_DOT = /\.$/
+  RE_CONTAINS_SPACES = /\b\s\b/
+  RE_CONTAINS_DOT = /\./
+  RE_CONTAINS_UPPERCASE = /[A-Z]/
+  RE_STARTS_WITH_SCOPE = /^#{Gird::Constants::SCOPE_PREFIX}/
 
   class Tree < Hash
     def sort_by_keys!
@@ -8,22 +14,11 @@ class Gird::PhraseBank
   end
 
   class PhraseError < RuntimeError
-    def initialize(details)
-      super(JSON.pretty_generate(details))
-    end
   end
 
-  SCOPE_PREFIX = Gird::Constants::SCOPE_PREFIX
-
-  RE_ENDS_WITH_DOT = /\.$/
-  RE_CONTAINS_SPACES = /\b\s\b/
-  RE_CONTAINS_DOT = /\./
-  RE_CONTAINS_UPPERCASE = /[A-Z]/
-  RE_STARTS_WITH_SCOPE = /^#{SCOPE_PREFIX}/
-
   def initialize
+    @phrases = {}
     self.tree = Tree.new { |h,k| h[k] = Tree.new(&h.default_proc) }
-    self.nr_phrases = 0
   end
 
   def add(key, value, source, filepath="")
@@ -54,7 +49,7 @@ class Gird::PhraseBank
       abort.call('is not lowercase')
     end
 
-    existing_phrase = @tree[key]
+    existing_phrase = @phrases[key]
 
     if existing_phrase && !existing_phrase.empty?
       return false if value.empty?
@@ -65,42 +60,65 @@ class Gird::PhraseBank
     end
 
     puts "Phrase: [#{key}] ~> [#{value}] (source: #{source} in #{filepath})"
-    @tree[key] = value
-    self.nr_phrases += 1
+    @phrases[key] = value
   end
 
-  def build_namespaces
-    @tree.sort_by_keys!
-    @tree.dup.each_pair do |k,v|
-      *keys, last = k.split('.')
+  def nr_phrases
+    @phrases.keys.size
+  end
 
+  def nr_missing
+    @phrases.values.select(&:empty?).length
+  end
+
+  # Collect all phrases in their corresponding namespace.
+  #
+  # Example:
+  #
+  #   {
+  #     "ns_wizards.mages.magi" => "Magi",
+  #     "ns_wizards.mages.magi_arch" => "Arch Magi"
+  #   }
+  #
+  # Turns into:
+  #
+  #   {
+  #     "ns_wizards" => {
+  #       "mages" => {
+  #         "magi" => "Magi",
+  #         "magi_arch" => "Arch Magi"
+  #       }
+  #     }
+  #   }
+  def implode(source=@phrases)
+    tree = Tree.new.replace(source)
+
+    tree.sort_by_keys!
+    tree.dup.each_pair do |path, phrase_value|
       namespace = Tree.new { |h,k| h[k] = Tree.new(&h.default_proc) }
-      keys.inject(namespace, :[])
-      keys.inject(namespace, :fetch)[last] = v
+
+      *path_fragments, last = path.split(Gird::Constants::SCOPE_DELIMITER)
+
+      path_fragments.inject(namespace, :[])
+      path_fragments.inject(namespace, :fetch)[last] = phrase_value
 
       namespace.sort_by_keys!
 
-      @tree.delete(k)
-      @tree.deep_merge!(namespace)
+      tree.delete(path)
+      tree.deep_merge!(namespace)
     end
+
+    tree
   end
 
-  def find_empty_phrases(phrases = tree, missing = [])
-    phrases.each_pair do |key, value|
-      missing << key if value.blank?
-
-      if key.is_a?(Tree)
-        find_empty_phrases(value, missing)
-      end
-    end
-
-    missing
+  def implode!
+    @tree = implode
   end
 
   private
 
   def warn_bad_phrase(key, value, source, reason, file, options={})
-    details = ({
+    details = JSON.pretty_generate({
       key: key,
       value: value,
       source: source,
@@ -111,7 +129,7 @@ class Gird::PhraseBank
     if options[:abort]
       raise PhraseError.new(details)
     else
-      puts "[WARN] Bad phrase: #{JSON.pretty_generate(details)}"
+      puts "[WARN] Bad phrase: #{details}"
     end
   end
 end

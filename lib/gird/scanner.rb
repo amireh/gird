@@ -36,13 +36,12 @@ class Gird::Scanner
       end
     end
 
-
-    @phrase_bank.build_namespaces
+    @phrase_bank.implode!
 
     stats[:imported_phrases] = 0
     stats[:files] = files.length
     stats[:phrases] = @phrase_bank.nr_phrases
-    stats[:missing] = @phrase_bank.find_empty_phrases.length
+    stats[:missing] = @phrase_bank.nr_missing
 
     puts '=' * 80
     puts "I18N PARSER STATS"

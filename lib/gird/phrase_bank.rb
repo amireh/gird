@@ -8,24 +8,41 @@ class Gird::PhraseBank
   RE_STARTS_WITH_SCOPE = /^#{Gird::Constants::SCOPE_PREFIX}/
 
   class Tree < Hash
+    def initialize
+      super { |h,k| h[k] = Tree.new(&h.default_proc) }
+    end
+
     def sort_by_keys!
       replace(Hash[self.sort_by { |k,v| k }])
     end
   end
 
-  class PhraseError < RuntimeError
-  end
-
   def initialize
     @phrases = {}
-    self.tree = Tree.new { |h,k| h[k] = Tree.new(&h.default_proc) }
+    self.tree = Tree.new
   end
 
-  def add(key, value, source, filepath="")
+  # Add a phrase to the bank.
+  #
+  # @param [String] key
+  #   The full path of the phrase.
+  #
+  # @param [String] value
+  #   The translation. Can be left empty if you're expecting it to be translated
+  #   later by an editor, or when importing phrases from another bank.
+  #
+  # @param [String] source
+  #   The source block from which the phrase was extracted.
+  #   Debugging/logging purposes only.
+  #
+  # @param [String] filepath
+  #   The source file from which the phrase was extracted.
+  #   Debugging/logging purposes only.
+  def add(key, value='', source='', filepath="")
     key = (key||'').to_s
     value = (value||'').to_s
 
-    warn = ->(reason, fatal) {
+    warn = ->(reason, fatal=false) {
       warn_bad_phrase(key, value, source, reason, filepath, { abort: fatal })
     }
 
@@ -42,7 +59,7 @@ class Gird::PhraseBank
     end
 
     if key =~ RE_CONTAINS_DOT && !(key =~ RE_STARTS_WITH_SCOPE)
-      warn.call('doesnt start with ns_', false)
+      warn.call('doesnt start with ns_')
     end
 
     if key =~ RE_CONTAINS_UPPERCASE
@@ -51,10 +68,10 @@ class Gird::PhraseBank
 
     existing_phrase = @phrases[key]
 
-    if existing_phrase && !existing_phrase.empty?
-      return false if value.empty?
-
-      if existing_phrase != value
+    if existing_phrase.present?
+      if value.empty?
+        return false
+      elsif existing_phrase != value
         abort.call("duplicate: was defined as #{existing_phrase}, and now got #{value}")
       end
     end
@@ -63,12 +80,28 @@ class Gird::PhraseBank
     @phrases[key] = value
   end
 
-  def nr_phrases
+  # Get the value of a phrase.
+  def get(key)
+    @phrases.fetch(key.to_s, nil)
+  end
+
+  # Import phrases from another bank.
+  def merge(bank)
+    bank.phrases.each do |phrase|
+      add(phrase, bank.get(phrase))
+    end
+  end
+
+  def size
     @phrases.keys.size
   end
 
-  def nr_missing
-    @phrases.values.select(&:empty?).length
+  def phrases
+    @phrases.keys
+  end
+
+  def missing
+    @phrases.values.select(&:empty?)
   end
 
   # Collect all phrases in their corresponding namespace.
@@ -95,7 +128,7 @@ class Gird::PhraseBank
 
     tree.sort_by_keys!
     tree.dup.each_pair do |path, phrase_value|
-      namespace = Tree.new { |h,k| h[k] = Tree.new(&h.default_proc) }
+      namespace = Tree.new
 
       *path_fragments, last = path.split(Gird::Constants::SCOPE_DELIMITER)
 
@@ -115,6 +148,14 @@ class Gird::PhraseBank
     @tree = implode
   end
 
+  def to_hash
+    implode
+  end
+
+  def to_json
+    to_hash.to_json
+  end
+
   private
 
   def warn_bad_phrase(key, value, source, reason, file, options={})
@@ -127,7 +168,7 @@ class Gird::PhraseBank
     })
 
     if options[:abort]
-      raise PhraseError.new(details)
+      raise Gird::PhraseError.new(details)
     else
       puts "[WARN] Bad phrase: #{details}"
     end

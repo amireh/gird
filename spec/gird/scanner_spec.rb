@@ -47,7 +47,7 @@ describe Gird::Scanner do
     it 'should abort on an error' do
       expect {
         subject.run(File.join(File.dirname(__FILE__), '..', 'fixture', 'broken', '*'), dest)
-      }.to raise_error(Gird::PhraseBank::PhraseError)
+      }.to raise_error(Gird::PhraseError)
 
       expect(File.exists?(dest)).to be(false)
     end

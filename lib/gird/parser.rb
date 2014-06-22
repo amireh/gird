@@ -210,12 +210,6 @@ class Gird::Parser
           value = $1
         end
 
-        if value.empty?
-          puts "\tWARN: no default value specified: #{capture}"
-        end
-
-        # puts "Phrase: [#{key}] -> [#{value}] (Token: [#{phrase[1]}])"
-
         phrases << {
           path: [ scope, key ].join(Gird::Constants::SCOPE_DELIMITER),
           value: value,

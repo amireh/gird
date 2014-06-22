@@ -40,8 +40,8 @@ class Gird::Scanner
 
     stats[:imported_phrases] = 0
     stats[:files] = files.length
-    stats[:phrases] = @phrase_bank.nr_phrases
-    stats[:missing] = @phrase_bank.nr_missing
+    stats[:phrases] = @phrase_bank.size
+    stats[:missing] = @phrase_bank.missing.size
 
     puts '=' * 80
     puts "I18N PARSER STATS"

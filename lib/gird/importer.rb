@@ -32,7 +32,7 @@ class Gird::Importer
   def populate(source, scope = '', bank = Gird::PhraseBank.new)
     source.each_pair do |phrase_key, phrase_value|
       unless scope.empty?
-        phrase_key = "#{scope}.#{phrase_key}"
+        phrase_key = [ scope, phrase_key ].join(Gird::Constants::SCOPE_DELIMITER)
       end
 
       if phrase_value.is_a?(Hash) # is it a scope in itself?

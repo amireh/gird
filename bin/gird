@@ -1,0 +1,21 @@
+#!/usr/bin/env ruby
+
+$LOAD_PATH.unshift(File.dirname(__FILE__) + '/../lib')
+
+require 'thor'
+require 'gird'
+
+class GirdCLI < Thor
+  class_option :verbose, :type => :boolean
+
+  desc 'scan /path/to/sources/**/*', 'Scan source files for i18n phrases.'
+  option :output, default: './en.json', desc: 'Path to where the JSON output will be saved.'
+  option :exclude, type: :array, desc: 'Files to exclude from scanning.'
+  def scan(src)
+    filters = Array.wrap(options[:exclude]).map(&:to_s).flatten.join(',').split(',').map(&:strip)
+    Gird::Log.verbose = options[:verbose]
+    Gird::Scanner.new.run(src, options[:output], filters)
+  end
+end
+
+GirdCLI.start(ARGV)

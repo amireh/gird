@@ -64,3 +64,4 @@ DEPENDENCIES
   guard-rspec
   rspec (= 2.14.1)
   terminal-notifier-guard
+  thor

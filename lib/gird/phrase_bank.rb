@@ -76,7 +76,7 @@ class Gird::PhraseBank
       end
     end
 
-    puts "Phrase: [#{key}] ~> [#{value}] (source: #{source} in #{filepath})"
+    # puts "Phrase: [#{key}] ~> [#{value}] (source: #{source} in #{filepath})"
     @phrases[key] = value
   end
 

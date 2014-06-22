@@ -20,19 +20,42 @@
 #   - www/assets/locales/**/*.yml
 
 class Gird::Scanner
-  def run(src, dest)
+  include Gird::Logger
+
+  def run(src, dest, filters=[])
     @phrase_bank = Gird::PhraseBank.new
     @parser = Gird::Parser.new
     stats = {}
 
     base = File.dirname(src)
     files = Dir.glob(src)
+
+    logger.debug "Scanning #{files.length} files with #{filters.length} exclusion filters."
+    logger.debug "Filters: #{filters.inspect}"
+
     files.each do |filepath|
       filename = filepath.sub(base, '')
+
+      filter = filters.detect { |filter| filename.match(filter) }
+
+      if filter.present?
+        logger.warn "Filter applied: [#{filter}] ~> [#{filename}]"
+        next
+      end
+
+      next if File.directory?(filepath)
+
+      tally = @phrase_bank.size
       @parser.parse(File.read(filepath)).each do |phrase|
         rc = @phrase_bank.add(phrase[:path], phrase[:value], phrase[:source], filename)
 
         abort if !rc
+      end
+
+      tally = @phrase_bank.size - tally
+
+      if tally > 0
+        logger.info "Extracted #{tally} phrases from #{filename}"
       end
     end
 
@@ -43,11 +66,11 @@ class Gird::Scanner
     stats[:phrases] = @phrase_bank.size
     stats[:missing] = @phrase_bank.missing.size
 
-    puts '=' * 80
-    puts "I18N PARSER STATS"
-    puts '-' * 80
-    puts stats.to_json
-    puts '=' * 80
+    logger.info '=' * 80
+    logger.info "I18N PARSER STATS"
+    logger.info '-' * 80
+    logger.info stats.to_json
+    logger.info '=' * 80
 
     File.open(dest, 'w') do |f|
       f.write({

@@ -174,7 +174,8 @@ class Gird::Parser
       scope, ref = scope_and_ref[:scope], scope_and_ref[:ref]
       ref_extractor = /\b
         #{ref}
-          \(
+          \( \s*
+            ['"]
             [^\)]+
           \)
       /x
@@ -209,6 +210,13 @@ class Gird::Parser
         elsif options =~ SCALAR_VALUE
           value = $1
         end
+
+        if key.empty?
+          puts "WARN: phrase is missing key (dynamically resolved?) source: [#{capture}]"
+          next
+        end
+
+        # puts "Phrase: #{key}"
 
         phrases << {
           path: [ scope, key ].join(Gird::Constants::SCOPE_DELIMITER),

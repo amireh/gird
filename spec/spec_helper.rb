@@ -6,4 +6,6 @@ RSpec.configure do |config|
   config.filter_run :focus
   config.color = true
   config.order = 'random'
+
+  Gird::Log.verbose = false
 end
